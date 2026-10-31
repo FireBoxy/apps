@@ -110,6 +110,9 @@
             <button onclick="openOnboarding()" title="Change Theme Accent" class="w-5 h-5 rounded-full accent-bg border border-white/20 transition hover:scale-110"></button>
 
             <!-- Run Button -->
+            <button onclick="openInBlank()" title="Open code in a new tab" aria-label="Open code in a new tab" class="text-slate-400 hover:text-white p-1.5 rounded-lg transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+            </button>
             <button onclick="runCode()" class="accent-bg hover:opacity-90 text-white px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition flex items-center space-x-1.5 shadow-sm accent-glow">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                 <span>Run</span>
@@ -165,6 +168,17 @@
             css: `body {\n  margin: 0;\n  padding: 2rem;\n  font-family: system-ui, sans-serif;\n  background: #0f172a;\n  color: #f8fafc;\n  display: flex;\n  justify-content: center;\n}\n.card {\n  background: #1e293b;\n  padding: 2rem;\n  border-radius: 12px;\n  max-width: 400px;\n}\nbutton {\n  margin-top: 1rem;\n  padding: 0.5rem 1rem;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 6px;\n  cursor: pointer;\n}`,
             js: `document.getElementById('btn').addEventListener('click', () => {\n  console.log('Button clicked!');\n});`
         };
+
+        const serviceWorkerShim = `<script>
+            if (navigator.serviceWorker) {
+                try {
+                    Object.defineProperty(navigator.serviceWorker, 'register', {
+                        configurable: true,
+                        value: () => Promise.resolve({})
+                    });
+                } catch (error) {}
+            }
+        <\/script>`;
 
         window.onload = function() {
             setAccentColor(selectedColor);
@@ -274,9 +288,24 @@
                 <\/script>
             `;
 
-            const doc = `<!DOCTYPE html><html><head><style>${css}</style>${consoleScript}</head><body>${html}<script>${js}<\/script></body></html>`;
+            const doc = `<!DOCTYPE html><html><head><style>${css}</style>${serviceWorkerShim}${consoleScript}</head><body>${html}<script>${js}<\/script></body></html>`;
             
             document.getElementById('previewFrame').srcdoc = doc;
+        }
+
+        function openInBlank() {
+            const outputWindow = window.open('about:blank', '_blank');
+            if (!outputWindow) return;
+
+            outputWindow.opener = null;
+            const html = cmHtml.getValue();
+            const css = cmCss.getValue();
+            const js = cmJs.getValue();
+            const doc = `<!DOCTYPE html><html><head><style>${css}</style>${serviceWorkerShim}</head><body>${html}<script>${js}<\/script></body></html>`;
+
+            outputWindow.document.open();
+            outputWindow.document.write(doc);
+            outputWindow.document.close();
         }
 
         window.addEventListener('message', (e) => {

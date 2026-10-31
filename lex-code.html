@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lex - Live Code Runner</title>
+    <title>Lex - Live HTML Code Runner</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/gh/FireBoxy/assets@main/Lex-logo.png">
     <!-- Tailwind CSS -->
@@ -155,6 +155,18 @@
         let cmHtml, cmCss, cmJs;
         let selectedColor = localStorage.getItem('lex_accent') || '#3b82f6';
 
+        function loadEditorValue(key, fallback) {
+            const temporaryValue = sessionStorage.getItem(key);
+            if (temporaryValue !== null) return temporaryValue;
+
+            const savedValue = localStorage.getItem(key);
+            if (savedValue === null) return fallback;
+
+            sessionStorage.setItem(key, savedValue);
+            localStorage.removeItem(key);
+            return savedValue;
+        }
+
         const initialCode = {
             html: `<div class="card">\n  <h1>Hello from Lex</h1>\n  <p>Write standard HTML, CSS, and JS. External APIs and CDNs can be included directly in code.</p>\n  <button id="btn">Click Me</button>\n</div>`,
             css: `body {\n  margin: 0;\n  padding: 2rem;\n  font-family: system-ui, sans-serif;\n  background: #0f172a;\n  color: #f8fafc;\n  display: flex;\n  justify-content: center;\n}\n.card {\n  background: #1e293b;\n  padding: 2rem;\n  border-radius: 12px;\n  max-width: 400px;\n}\nbutton {\n  margin-top: 1rem;\n  padding: 0.5rem 1rem;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 6px;\n  cursor: pointer;\n}`,
@@ -179,9 +191,9 @@
             cmCss = CodeMirror.fromTextArea(document.getElementById('editorCss'), { mode: 'css', theme: 'dracula', lineNumbers: true, autoCloseBrackets: true, tabSize: 2 });
             cmJs = CodeMirror.fromTextArea(document.getElementById('editorJs'), { mode: 'javascript', theme: 'dracula', lineNumbers: true, autoCloseBrackets: true, tabSize: 2 });
 
-            cmHtml.setValue(localStorage.getItem('lex_html') || initialCode.html);
-            cmCss.setValue(localStorage.getItem('lex_css') || initialCode.css);
-            cmJs.setValue(localStorage.getItem('lex_js') || initialCode.js);
+            cmHtml.setValue(loadEditorValue('lex_html', initialCode.html));
+            cmCss.setValue(loadEditorValue('lex_css', initialCode.css));
+            cmJs.setValue(loadEditorValue('lex_js', initialCode.js));
 
             switchTab('html');
 
@@ -260,9 +272,9 @@
             const css = cmCss.getValue();
             const js = cmJs.getValue();
 
-            localStorage.setItem('lex_html', html);
-            localStorage.setItem('lex_css', css);
-            localStorage.setItem('lex_js', js);
+            sessionStorage.setItem('lex_html', html);
+            sessionStorage.setItem('lex_css', css);
+            sessionStorage.setItem('lex_js', js);
 
             const doc = `<!DOCTYPE html><html><head><style>${css}</style>${serviceWorkerShim}</head><body>${html}<script>${js}<\/script></body></html>`;
             

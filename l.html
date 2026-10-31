@@ -10890,7 +10890,10 @@
 
   const leafUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/leaf.html';
   const lexButton = document.getElementById('launch-lex');
-  const lexUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/Lex.html';
+  const isLocalDevelopment = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  const lexUrl = isLocalDevelopment
+    ? new URL('./lex-code.html', window.location.href).href
+    : 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/lex-code.html';
 
   const overlay = document.createElement('div');
   overlay.className = 'tool-viewer-backdrop';
@@ -11020,7 +11023,9 @@
       let toolUrl;
       try {
         toolUrl = new URL(lexUrl);
-        if (toolUrl.protocol !== 'https:' || toolUrl.hostname !== 'cdn.jsdelivr.net') {
+        const isJsDelivrUrl = toolUrl.protocol === 'https:' && toolUrl.hostname === 'cdn.jsdelivr.net';
+        const isLocalAppUrl = isLocalDevelopment && toolUrl.origin === window.location.origin;
+        if (!isJsDelivrUrl && !isLocalAppUrl) {
           throw new Error('Use a secure jsDelivr URL (https://cdn.jsdelivr.net/...).');
         }
       } catch (error) {
@@ -11041,11 +11046,13 @@
         lexRoot.remove();
         lexRoot = null;
       }
+
       requestController = new AbortController();
       const currentRequest = requestController;
+      toolUrl.searchParams.set('_loom', Date.now().toString());
       viewerStatus.textContent = 'Fetching Lex from jsDelivr…';
       try {
-        const response = await fetch(toolUrl.href, { signal: currentRequest.signal });
+        const response = await fetch(toolUrl.href, { signal: currentRequest.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('Could not load Lex (HTTP ' + response.status + ').');
         const source = await response.text();
         if (!source.trim()) throw new Error('Lex’s HTML file is empty.');

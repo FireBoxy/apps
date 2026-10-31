@@ -1253,6 +1253,17 @@
             <span>Open Leaf</span><span aria-hidden="true">↗</span>
           </button>
         </article>
+        <article class="tool-card tool-card-lex">
+          <div class="tool-card-art" aria-hidden="true"><span>💻</span><i></i></div>
+          <div class="tool-card-copy">
+            <span class="tool-card-category">CODE · LIVE PREVIEW</span>
+            <h2>Lex</h2>
+            <p>Write HTML, CSS, and JavaScript and see your creation come to life.</p>
+          </div>
+          <button class="btn tool-launch-btn" id="launch-lex" type="button">
+            <span>Open Lex</span><span aria-hidden="true">↗</span>
+          </button>
+        </article>
       </div>
     </section>
 
@@ -10823,9 +10834,36 @@
   .tool-card-leaf .tool-card-copy h2 { font-size: 1.35rem; }
   .tool-card-leaf .tool-launch-btn span:last-child { transition: transform 160ms ease; }
   .tool-card-leaf .tool-launch-btn:hover span:last-child { transform: translate(2px, -2px); }
+  .tool-card-lex .tool-card-art {
+    background:
+      radial-gradient(circle at 24% 26%, rgba(34, 211, 238, .25), transparent 34%),
+      radial-gradient(circle at 76% 74%, rgba(139, 92, 246, .3), transparent 40%),
+      linear-gradient(135deg, #101b32, #17132d);
+  }
+  .tool-card-lex .tool-card-art::before {
+    position: absolute;
+    content: "</>";
+    color: rgba(165, 243, 252, .38);
+    font: 700 1rem ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .24em;
+    transform: translate(76px, -50px);
+  }
+  .tool-card-lex .tool-card-art i,
+  .tool-card-lex .tool-card-art i::before,
+  .tool-card-lex .tool-card-art i::after { border-color: rgba(103, 232, 249, .3); }
+  .tool-card-lex .tool-card-art > span { animation: lex-float 3.2s ease-in-out infinite; }
+  .tool-card-lex .tool-card-category { color: #67e8f9; }
+  .tool-card-lex .tool-card-copy h2 { font-size: 1.35rem; }
+  .tool-card-lex .tool-launch-btn span:last-child { transition: transform 160ms ease; }
+  .tool-card-lex .tool-launch-btn:hover span:last-child { transform: translate(2px, -2px); }
+  @keyframes lex-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .tool-card, .tool-card-leaf .tool-launch-btn span:last-child { transition: none; }
+    .tool-card, .tool-card-leaf .tool-launch-btn span:last-child, .tool-card-lex .tool-launch-btn span:last-child { transition: none; }
+    .tool-card-lex .tool-card-art > span { animation: none; }
   }
   .tool-viewer-backdrop { position: fixed; inset: 0; z-index: 4000; display: none; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.32); backdrop-filter: blur(4px); }
   .tool-viewer-backdrop.open { display: flex; }
@@ -10837,6 +10875,9 @@
   .tool-viewer-status { flex: 0 0 auto; padding: .65rem 1rem; color: var(--muted-text); font-size: .75rem; }
   .tool-viewer-status:empty { display: none; }
   .tool-viewer-content { min-height: 0; flex: 1; overflow: auto; background: var(--bg-color); color: var(--text-color); }
+  .tool-app-root { position: absolute; inset: 0; overflow: auto; }
+  .tool-app-root[hidden] { display: none; }
+  .tool-app-lex { width: 100%; height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #090d16; color: #f1f5f9; }
   @media (max-width: 600px) {
     .tool-viewer-backdrop { padding: 1.25rem; }
     .tool-viewer { width: 96vw; height: 94dvh; min-height: 240px; border-radius: 14px; }
@@ -10848,6 +10889,8 @@
   if (!launchButton) return;
 
   const leafUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/leaf.html';
+  const lexButton = document.getElementById('launch-lex');
+  const lexUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/Lex.html';
 
   const overlay = document.createElement('div');
   overlay.className = 'tool-viewer-backdrop';
@@ -10860,9 +10903,14 @@
 
   const viewerContent = overlay.querySelector('.tool-viewer-content');
   const viewerStatus = overlay.querySelector('.tool-viewer-status');
+  const viewerTitle = overlay.querySelector('.tool-viewer-title');
   const closeButton = overlay.querySelector('.tool-viewer-close');
   let requestController = null;
   let leafLoaded = false;
+  let leafRoot = null;
+  let lexRoot = null;
+  let lexLoaded = false;
+  let activeLaunchButton = launchButton;
 
   function closeViewer() {
     if (!overlay.classList.contains('open')) return;
@@ -10870,7 +10918,15 @@
     requestController = null;
     overlay.classList.remove('open');
     viewerStatus.textContent = '';
-    launchButton.focus();
+    activeLaunchButton.focus();
+  }
+
+  function showViewer(button, title) {
+    activeLaunchButton = button;
+    viewerTitle.textContent = title;
+    closeButton.setAttribute('aria-label', 'Close ' + title + ' and return to Loom');
+    overlay.classList.add('open');
+    closeButton.focus();
   }
 
   closeButton.addEventListener('click', closeViewer);
@@ -10891,14 +10947,23 @@
       return;
     }
 
-    overlay.classList.add('open');
-    closeButton.focus();
+    showViewer(launchButton, 'Leaf');
+    if (requestController) {
+      requestController.abort();
+      requestController = null;
+    }
+    if (leafRoot) leafRoot.hidden = false;
+    if (lexRoot) lexRoot.hidden = true;
+    viewerStatus.textContent = '';
+
     if (leafLoaded) return;
 
-    if (requestController) requestController.abort();
+    if (leafRoot) {
+      leafRoot.remove();
+      leafRoot = null;
+    }
     requestController = new AbortController();
     const currentRequest = requestController;
-    viewerContent.replaceChildren();
     viewerStatus.textContent = 'Fetching Leaf from jsDelivr…';
 
     try {
@@ -10910,13 +10975,17 @@
 
       const parsed = new DOMParser().parseFromString(source, 'text/html');
       const scripts = Array.from(parsed.querySelectorAll('script'));
+      const root = document.createElement('div');
+      root.className = 'tool-app-root tool-app-leaf';
       parsed.querySelectorAll('script').forEach(script => script.remove());
       parsed.querySelectorAll('style, link[rel="stylesheet"]').forEach(style => {
-        viewerContent.appendChild(document.importNode(style, true));
+        root.appendChild(document.importNode(style, true));
       });
       Array.from(parsed.body.childNodes).forEach(node => {
-        viewerContent.appendChild(document.importNode(node, true));
+        root.appendChild(document.importNode(node, true));
       });
+      viewerContent.appendChild(root);
+      leafRoot = root;
 
       for (const original of scripts) {
         if (requestController !== currentRequest) return;
@@ -10927,11 +10996,11 @@
           await new Promise((resolve, reject) => {
             script.onload = resolve;
             script.onerror = () => reject(new Error('A Leaf script could not be loaded.'));
-            viewerContent.appendChild(script);
+            root.appendChild(script);
           });
         } else {
           script.textContent = original.textContent;
-          viewerContent.appendChild(script);
+          root.appendChild(script);
         }
       }
       if (requestController !== currentRequest) return;
@@ -10945,6 +11014,100 @@
       if (requestController === currentRequest) requestController = null;
     }
   });
+
+  if (lexButton) {
+    lexButton.addEventListener('click', async () => {
+      let toolUrl;
+      try {
+        toolUrl = new URL(lexUrl);
+        if (toolUrl.protocol !== 'https:' || toolUrl.hostname !== 'cdn.jsdelivr.net') {
+          throw new Error('Use a secure jsDelivr URL (https://cdn.jsdelivr.net/...).');
+        }
+      } catch (error) {
+        toast(error.message || 'Lex’s jsDelivr URL is invalid.');
+        return;
+      }
+
+      showViewer(lexButton, 'Lex');
+      if (requestController) {
+        requestController.abort();
+        requestController = null;
+      }
+      if (leafRoot) leafRoot.hidden = true;
+      if (lexRoot) lexRoot.hidden = false;
+      if (lexLoaded) return;
+
+      if (lexRoot) {
+        lexRoot.remove();
+        lexRoot = null;
+      }
+      requestController = new AbortController();
+      const currentRequest = requestController;
+      viewerStatus.textContent = 'Fetching Lex from jsDelivr…';
+      try {
+        const response = await fetch(toolUrl.href, { signal: currentRequest.signal });
+        if (!response.ok) throw new Error('Could not load Lex (HTTP ' + response.status + ').');
+        const source = await response.text();
+        if (!source.trim()) throw new Error('Lex’s HTML file is empty.');
+        if (requestController !== currentRequest) return;
+
+        const parsed = new DOMParser().parseFromString(source, 'text/html');
+        const scripts = Array.from(parsed.querySelectorAll('script'));
+        const root = document.createElement('div');
+        root.className = 'tool-app-root tool-app-lex ' + parsed.body.className;
+        root.setAttribute('aria-label', 'Lex live HTML code runner');
+        root.style.height = '100%';
+        root.style.minHeight = '0';
+        parsed.querySelectorAll('script').forEach(script => script.remove());
+        parsed.querySelectorAll('style, link[rel="stylesheet"]').forEach(style => {
+          const mountedStyle = document.importNode(style, true);
+          if (mountedStyle.tagName === 'STYLE') {
+            mountedStyle.textContent = mountedStyle.textContent.replace(/\bbody\s*\{/g, '.tool-app-lex {');
+          }
+          root.appendChild(mountedStyle);
+        });
+        Array.from(parsed.body.childNodes).forEach(node => {
+          root.appendChild(document.importNode(node, true));
+        });
+        viewerContent.appendChild(root);
+        lexRoot = root;
+
+        for (const original of scripts) {
+          if (requestController !== currentRequest) return;
+          const script = document.createElement('script');
+          Array.from(original.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+          if (original.src) {
+            script.src = new URL(original.getAttribute('src'), toolUrl.href).href;
+            await new Promise((resolve, reject) => {
+              script.onload = resolve;
+              script.onerror = () => reject(new Error('A Lex script could not be loaded.'));
+              root.appendChild(script);
+            });
+          } else {
+            const previousOnload = window.onload;
+            script.textContent = original.textContent;
+            root.appendChild(script);
+            const lexOnload = window.onload;
+            if (lexOnload && lexOnload !== previousOnload) {
+              window.onload = previousOnload;
+              lexOnload.call(window, new Event('load'));
+            }
+          }
+        }
+        if (requestController !== currentRequest) return;
+        lexLoaded = true;
+        viewerStatus.textContent = '';
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        if (lexRoot) lexRoot.remove();
+        lexRoot = null;
+        viewerStatus.textContent = error.message || 'Lex could not be loaded. Check the URL and try again.';
+        toast('Lex could not be loaded');
+      } finally {
+        if (requestController === currentRequest) requestController = null;
+      }
+    });
+  }
 })();
 </script>
 </html>

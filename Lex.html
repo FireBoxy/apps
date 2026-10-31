@@ -108,15 +108,6 @@
         <div class="flex items-center space-x-3">
             <!-- Accent indicator / settings -->
             <button onclick="openOnboarding()" title="Change Theme Accent" class="w-5 h-5 rounded-full accent-bg border border-white/20 transition hover:scale-110"></button>
-
-            <!-- Run Button -->
-            <button onclick="openInBlank()" title="Open code in a new tab" aria-label="Open code in a new tab" class="text-slate-400 hover:text-white p-1.5 rounded-lg transition">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
-            </button>
-            <button onclick="runCode()" class="accent-bg hover:opacity-90 text-white px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition flex items-center space-x-1.5 shadow-sm accent-glow">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                <span>Run</span>
-            </button>
         </div>
     </header>
 
@@ -144,17 +135,18 @@
         <div class="w-full md:w-1/2 flex flex-col h-1/2 md:h-full bg-slate-950 relative">
             <!-- Preview Top Bar -->
             <div class="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between text-xs text-slate-400">
-                <span class="font-mono text-[11px] text-slate-500">localhost:3000</span>
-                <button onclick="clearConsole()" class="hover:text-slate-200 transition text-[11px]">Clear Console</button>
+                <div class="flex items-center space-x-3">
+                    <span class="font-mono text-[11px] text-slate-500">localhost:3000</span>
+                    <button onclick="runCode()" class="accent-bg hover:opacity-90 text-white px-3 py-1 rounded-lg text-xs font-semibold tracking-wide transition flex items-center space-x-1.5 shadow-sm accent-glow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        <span>Run</span>
+                    </button>
+                </div>
+                <button onclick="openInBlank()" title="Open code in about:blank" aria-label="Open code in a new tab" class="text-slate-400 hover:text-white px-2 py-1 rounded-lg transition">Open in new tab ↗</button>
             </div>
 
             <!-- Output Preview Frame -->
             <iframe id="previewFrame" class="flex-1 w-full h-full border-0 bg-white" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
-
-            <!-- Minimal Console Log Drawer -->
-            <div id="consoleLogPane" class="h-28 bg-slate-900/90 border-t border-slate-800 overflow-y-auto p-2 font-mono text-xs space-y-1">
-                <div class="text-slate-600 italic text-[11px]">Console output will appear here...</div>
-            </div>
         </div>
 
     </div>
@@ -272,23 +264,7 @@
             localStorage.setItem('lex_css', css);
             localStorage.setItem('lex_js', js);
 
-            const consoleScript = `
-                <script>
-                    (function() {
-                        const origLog = console.log, origErr = console.error;
-                        console.log = function(...args) {
-                            origLog.apply(console, args);
-                            window.parent.postMessage({ type: 'log', data: args.join(' ') }, '*');
-                        };
-                        console.error = function(...args) {
-                            origErr.apply(console, args);
-                            window.parent.postMessage({ type: 'error', data: args.join(' ') }, '*');
-                        };
-                    })();
-                <\/script>
-            `;
-
-            const doc = `<!DOCTYPE html><html><head><style>${css}</style>${serviceWorkerShim}${consoleScript}</head><body>${html}<script>${js}<\/script></body></html>`;
+            const doc = `<!DOCTYPE html><html><head><style>${css}</style>${serviceWorkerShim}</head><body>${html}<script>${js}<\/script></body></html>`;
             
             document.getElementById('previewFrame').srcdoc = doc;
         }
@@ -308,20 +284,6 @@
             outputWindow.document.close();
         }
 
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type) {
-                const pane = document.getElementById('consoleLogPane');
-                const msg = document.createElement('div');
-                msg.className = e.data.type === 'error' ? 'text-red-400' : 'text-slate-300';
-                msg.textContent = `> ${e.data.data}`;
-                pane.appendChild(msg);
-                pane.scrollTop = pane.scrollHeight;
-            }
-        });
-
-        function clearConsole() {
-            document.getElementById('consoleLogPane').innerHTML = '';
-        }
     </script>
 </body>
 </html>

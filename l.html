@@ -1264,6 +1264,17 @@
             <span>Open Lex</span><span aria-hidden="true">↗</span>
           </button>
         </article>
+        <article class="tool-card tool-card-vm">
+          <div class="tool-card-art" aria-hidden="true"><span>🖥️</span><i></i></div>
+          <div class="tool-card-copy">
+            <span class="tool-card-category">CLOUD · VIRTUAL MACHINE</span>
+            <h2>VM</h2>
+            <p>Launch a cloud virtual machine in your browser.</p>
+          </div>
+          <button class="btn tool-launch-btn" id="launch-vm" type="button">
+            <span>Open VM</span><span aria-hidden="true">↗</span>
+          </button>
+        </article>
       </div>
     </section>
 
@@ -10860,10 +10871,36 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-5px); }
   }
+  .tool-card-vm .tool-card-art {
+    background:
+      radial-gradient(circle at 22% 30%, rgba(52, 211, 153, .25), transparent 36%),
+      radial-gradient(circle at 76% 74%, rgba(59, 130, 246, .3), transparent 42%),
+      linear-gradient(135deg, #102720, #101a31);
+  }
+  .tool-card-vm .tool-card-art::before {
+    position: absolute;
+    content: "CLOUD / VM";
+    color: rgba(167, 243, 208, .48);
+    font: 600 .65rem ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .18em;
+    transform: translateY(57px);
+  }
+  .tool-card-vm .tool-card-art i,
+  .tool-card-vm .tool-card-art i::before,
+  .tool-card-vm .tool-card-art i::after { border-color: rgba(110, 231, 183, .3); }
+  .tool-card-vm .tool-card-art > span { animation: vm-float 3.6s ease-in-out infinite; }
+  .tool-card-vm .tool-card-category { color: #6ee7b7; }
+  .tool-card-vm .tool-card-copy h2 { font-size: 1.35rem; }
+  .tool-card-vm .tool-launch-btn span:last-child { transition: transform 160ms ease; }
+  .tool-card-vm .tool-launch-btn:hover span:last-child { transform: translate(2px, -2px); }
+  @keyframes vm-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .tool-card, .tool-card-leaf .tool-launch-btn span:last-child, .tool-card-lex .tool-launch-btn span:last-child { transition: none; }
-    .tool-card-lex .tool-card-art > span { animation: none; }
+    .tool-card, .tool-card-leaf .tool-launch-btn span:last-child, .tool-card-lex .tool-launch-btn span:last-child, .tool-card-vm .tool-launch-btn span:last-child { transition: none; }
+    .tool-card-lex .tool-card-art > span, .tool-card-vm .tool-card-art > span { animation: none; }
   }
   .tool-viewer-backdrop { position: fixed; inset: 0; z-index: 4000; display: none; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.32); backdrop-filter: blur(4px); }
   .tool-viewer-backdrop.open { display: flex; }
@@ -10878,6 +10915,7 @@
   .tool-app-root { position: absolute; inset: 0; overflow: auto; }
   .tool-app-root[hidden] { display: none; }
   .tool-app-lex { width: 100%; height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #090d16; color: #f1f5f9; }
+  .tool-app-vm { position: absolute; inset: 0; overflow: auto; background: #0f111a; color: #fff; }
   @media (max-width: 600px) {
     .tool-viewer-backdrop { padding: 1.25rem; }
     .tool-viewer { width: 96vw; height: 94dvh; min-height: 240px; border-radius: 14px; }
@@ -10890,6 +10928,8 @@
 
   const leafUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/leaf.html';
   const lexButton = document.getElementById('launch-lex');
+  const vmButton = document.getElementById('launch-vm');
+  const vmUrl = 'https://cdn.jsdelivr.net/gh/FireBoxy/apps@main/vm-xcloud.html';
   const isLocalDevelopment = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const lexUrl = isLocalDevelopment
     ? new URL('./lex-code.html', window.location.href).href
@@ -10913,6 +10953,10 @@
   let leafRoot = null;
   let lexRoot = null;
   let lexLoaded = false;
+  const vmStoragePrefix = 'loom-vm-xcloud:';
+  let vmRoot = null;
+  let vmPreviousThemeSelectId = null;
+  let vmPreviousDocumentTitle = '';
   let activeLaunchButton = launchButton;
 
   function closeViewer() {
@@ -10921,6 +10965,7 @@
     requestController = null;
     overlay.classList.remove('open');
     viewerStatus.textContent = '';
+    cleanupVmApp();
     activeLaunchButton.focus();
   }
 
@@ -10932,12 +10977,69 @@
     closeButton.focus();
   }
 
+  function cleanupVmApp() {
+    if (vmRoot) vmRoot.remove();
+    vmRoot = null;
+    if (vmPreviousThemeSelectId) vmPreviousThemeSelectId.id = 'theme-select';
+    vmPreviousThemeSelectId = null;
+    if (vmPreviousDocumentTitle) document.title = vmPreviousDocumentTitle;
+    vmPreviousDocumentTitle = '';
+  }
+
+  function confirmVmWarning() {
+    return new Promise(resolve => {
+      const backdrop = document.getElementById('modal-backdrop');
+      const closeButton = document.getElementById('close-modal-btn');
+      let settled = false;
+
+      const onCancel = () => finish(false);
+      const onContinue = () => finish(true);
+      const onClose = () => finish(false);
+      const onBackdropClick = event => {
+        if (event.target === backdrop) finish(false);
+      };
+      const onKeydown = event => {
+        if (event.key === 'Escape') finish(false);
+      };
+      const finish = accepted => {
+        if (settled) return;
+        settled = true;
+        document.getElementById('vm-warning-cancel')?.removeEventListener('click', onCancel);
+        document.getElementById('vm-warning-continue')?.removeEventListener('click', onContinue);
+        closeButton.removeEventListener('click', onClose);
+        backdrop.removeEventListener('click', onBackdropClick);
+        document.removeEventListener('keydown', onKeydown);
+        closeModal();
+        resolve(accepted);
+      };
+
+      openModal('Before you create an account', `
+        <div class="info-modal-content">
+          <section>
+            <h3>Create an account with your home email.</h3>
+            <p style="color:#ff7272;font-weight:700">!NEVER USE your school email!</p>
+          </section>
+          <div style="display:flex;justify-content:flex-end;gap:.75rem">
+            <button class="btn btn-secondary" id="vm-warning-cancel" type="button">Cancel</button>
+            <button class="btn" id="vm-warning-continue" type="button">Continue to VM</button>
+          </div>
+        </div>
+      `);
+
+      document.getElementById('vm-warning-cancel').addEventListener('click', onCancel);
+      document.getElementById('vm-warning-continue').addEventListener('click', onContinue);
+      closeButton.addEventListener('click', onClose);
+      backdrop.addEventListener('click', onBackdropClick);
+      document.addEventListener('keydown', onKeydown);
+      document.getElementById('vm-warning-cancel').focus();
+    });
+  }
+
   closeButton.addEventListener('click', closeViewer);
   overlay.addEventListener('click', event => { if (event.target === overlay) closeViewer(); });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && overlay.classList.contains('open')) closeViewer();
   });
-
   launchButton.addEventListener('click', async () => {
     let toolUrl;
     try {
@@ -10957,6 +11059,7 @@
     }
     if (leafRoot) leafRoot.hidden = false;
     if (lexRoot) lexRoot.hidden = true;
+    cleanupVmApp();
     viewerStatus.textContent = '';
 
     if (leafLoaded) return;
@@ -11040,6 +11143,7 @@
       }
       if (leafRoot) leafRoot.hidden = true;
       if (lexRoot) lexRoot.hidden = false;
+      cleanupVmApp();
       if (lexLoaded) return;
 
       if (lexRoot) {
@@ -11110,6 +11214,154 @@
         lexRoot = null;
         viewerStatus.textContent = error.message || 'Lex could not be loaded. Check the URL and try again.';
         toast('Lex could not be loaded');
+      } finally {
+        if (requestController === currentRequest) requestController = null;
+      }
+    });
+  }
+
+  if (vmButton) {
+    vmButton.addEventListener('click', async () => {
+      if (!await confirmVmWarning()) return;
+
+      let toolUrl;
+      try {
+        toolUrl = new URL(vmUrl);
+        if (toolUrl.protocol !== 'https:' || toolUrl.hostname !== 'cdn.jsdelivr.net') {
+          throw new Error('Use a secure jsDelivr URL (https://cdn.jsdelivr.net/...).');
+        }
+      } catch (error) {
+        toast(error.message || 'The VM app URL is invalid.');
+        return;
+      }
+
+      showViewer(vmButton, 'VM');
+      if (requestController) {
+        requestController.abort();
+        requestController = null;
+      }
+      if (leafRoot) leafRoot.hidden = true;
+      if (lexRoot) lexRoot.hidden = true;
+      if (vmRoot) {
+        vmRoot.hidden = false;
+        viewerStatus.textContent = '';
+        return;
+      }
+
+      requestController = new AbortController();
+      const currentRequest = requestController;
+      toolUrl.searchParams.set('_loom', Date.now().toString());
+      viewerStatus.textContent = 'Fetching VM from jsDelivr…';
+
+      try {
+        const response = await fetch(toolUrl.href, { signal: currentRequest.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error('Could not load VM (HTTP ' + response.status + ').');
+        const source = await response.text();
+        const encodedApp = source.match(/atob\(['"]([A-Za-z0-9+/=]+)['"]\)/);
+        if (!encodedApp) throw new Error('The VM HTML wrapper has an unexpected format.');
+        if (requestController !== currentRequest) return;
+
+        const binary = atob(encodedApp[1]);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        const appMarkup = new TextDecoder().decode(bytes);
+        const parsed = new DOMParser().parseFromString(appMarkup, 'text/html');
+        if (!parsed.body || !parsed.head) throw new Error('The VM app did not contain a valid HTML document.');
+
+        const appBaseUrl = 'https://xcloud.inknetworks.site/';
+        const root = document.createElement('div');
+        root.className = 'tool-app-root tool-app-vm';
+        root.setAttribute('aria-label', 'Xcloud virtual machine app');
+        const scripts = Array.from(parsed.querySelectorAll('script'));
+        const styles = Array.from(parsed.querySelectorAll('style, link[rel="stylesheet"]'));
+        const originalDocumentTitle = parsed.title;
+        scripts.forEach(script => script.remove());
+        styles.forEach(style => {
+          if (style.tagName === 'STYLE') {
+            style.textContent = style.textContent.replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + appBaseUrl);
+          } else {
+            const href = style.getAttribute('href');
+            if (href && href.startsWith('/')) style.href = new URL(href, appBaseUrl).href;
+          }
+          root.appendChild(document.importNode(style, true));
+        });
+
+        Array.from(parsed.body.childNodes).forEach(node => {
+          const imported = document.importNode(node, true);
+          if (imported.nodeType === 1) {
+            for (const attribute of ['src', 'href', 'action', 'poster']) {
+              const value = imported.getAttribute(attribute);
+              if (value && value.startsWith('/')) imported.setAttribute(attribute, new URL(value, appBaseUrl).href);
+            }
+            imported.querySelectorAll('[src^="/"], [href^="/"], [action^="/"], [poster^="/"]').forEach(element => {
+              for (const attribute of ['src', 'href', 'action', 'poster']) {
+                const value = element.getAttribute(attribute);
+                if (value && value.startsWith('/')) element.setAttribute(attribute, new URL(value, appBaseUrl).href);
+              }
+            });
+          }
+          root.appendChild(imported);
+        });
+        viewerContent.appendChild(root);
+        vmRoot = root;
+        vmPreviousDocumentTitle = document.title;
+        if (originalDocumentTitle) document.title = originalDocumentTitle;
+
+        vmPreviousThemeSelectId = document.getElementById('theme-select');
+        if (vmPreviousThemeSelectId) vmPreviousThemeSelectId.id = 'loom-theme-select';
+
+        const createVmStorage = (area) => {
+          const storage = window[area];
+          const prefix = vmStoragePrefix + area + ':';
+          const keys = () => {
+            const result = [];
+            for (let index = 0; index < storage.length; index++) {
+              const key = storage.key(index);
+              if (key && key.startsWith(prefix)) result.push(key.slice(prefix.length));
+            }
+            return result;
+          };
+          return {
+            get length() { return keys().length; },
+            key(index) { return keys()[index] ?? null; },
+            getItem(key) { return storage.getItem(prefix + String(key)); },
+            setItem(key, value) { storage.setItem(prefix + String(key), String(value)); },
+            removeItem(key) { storage.removeItem(prefix + String(key)); },
+            clear() { keys().forEach(key => storage.removeItem(prefix + key)); }
+          };
+        };
+        window.__loomVmLocalStorage = createVmStorage('localStorage');
+        window.__loomVmSessionStorage = createVmStorage('sessionStorage');
+
+        for (const original of scripts) {
+          if (requestController !== currentRequest) return;
+          const type = (original.getAttribute('type') || '').toLowerCase();
+          const content = original.textContent || '';
+          if (!original.src && /navigator\s*\.\s*serviceWorker\s*\.\s*register/.test(content)) continue;
+
+          const script = document.createElement('script');
+          Array.from(original.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+          if (original.src) {
+            script.src = new URL(original.getAttribute('src'), appBaseUrl).href;
+            await new Promise((resolve, reject) => {
+              script.onload = resolve;
+              script.onerror = () => reject(new Error('A VM script could not be loaded.'));
+              root.appendChild(script);
+            });
+          } else {
+            script.textContent = type === 'text/plain' ? content : content
+              .replace(/\blocalStorage\b/g, 'window.__loomVmLocalStorage')
+              .replace(/\bsessionStorage\b/g, 'window.__loomVmSessionStorage');
+            root.appendChild(script);
+          }
+        }
+
+        if (requestController !== currentRequest) return;
+        viewerStatus.textContent = '';
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        cleanupVmApp();
+        viewerStatus.textContent = error.message || 'VM could not be loaded from jsDelivr.';
+        toast('VM could not be loaded');
       } finally {
         if (requestController === currentRequest) requestController = null;
       }

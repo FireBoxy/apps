@@ -166,6 +166,15 @@
       pointer-events: none;
     }
 
+    #snow-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+
     /* Header Navigation */
     header {
       position: relative;
@@ -970,6 +979,7 @@
 
   <!-- 3D Canvas Background -->
   <canvas id="bg-canvas"></canvas>
+  <canvas id="snow-canvas" aria-hidden="true"></canvas>
 
   <!-- Top Header Navigation -->
   <header>
@@ -1226,12 +1236,23 @@
 
     <div id="page3" class="page-content">
       <div class="embed-workspace">
-        <button class="browser-open-btn" type="button" onclick="openBrowserServerInNewTab()" aria-label="Open Boogle Brome in about:blank" title="Open in about:blank">
+        <details class="browser-provider-picker" id="browser-provider-picker">
+          <summary class="btn btn-secondary">Providers <span aria-hidden="true">⌄</span></summary>
+          <div class="browser-provider-menu" role="menu" aria-label="Browser providers">
+            <button type="button" role="menuitem" data-browser-provider="Cherri" data-browser-url="https://bull.devs.surf/">Cherri</button>
+            <button type="button" role="menuitem" data-browser-provider="Opium" data-browser-url="https://storage.googleapis.com/gclassroom/study.html">Opium</button>
+            <button type="button" role="menuitem" data-browser-provider="Refract" data-browser-url="https://s3.us-east-2.amazonaws.com/wittylemon37/index.html">Refract</button>
+            <button type="button" role="menuitem" data-browser-provider="Zaka" data-browser-url="https://hw.itcode.vip">Zaka</button>
+            <button type="button" role="menuitem" data-browser-provider="Zaka" data-browser-url="https://zaka13fr.storage.googleapis.com/static-zaka/index.html">Zaka (alternate)</button>
+            <button type="button" role="menuitem" data-browser-provider="Potatoland" data-browser-url="https://scholarshipedu.com">Potatoland</button>
+          </div>
+        </details>
+        <button class="browser-open-btn" type="button" onclick="openBrowserServerInNewTab()" aria-label="Open selected browser provider in about:blank" title="Open in about:blank">
           <span aria-hidden="true">↗</span>
         </button>
         <iframe class="embed-iframe" id="page3-iframe" loading="lazy"
-          title="Boogle Brome"
-          src="https://gs84jaz9xo.z19.web.core.windows.net/index.svg"></iframe>
+          title="Cherri browser"
+          src="https://bull.devs.surf/"></iframe>
       </div>
     </div>
 
@@ -1281,28 +1302,92 @@
   </main>
 
   <script>
-    fetch('https://cdn.jsdelivr.net/gh/FireBoxed-SF/luna@main/moon.html?v=20261025')
-      .then(response => {
-        if (!response.ok) throw new Error('Could not load the Music module.');
-        return response.text();
-      })
-      .then(markup => {
-        const mount = document.getElementById('music');
-        if (!mount) return;
-        const parsed = new DOMParser().parseFromString(markup, 'text/html');
-        const musicStyle = parsed.querySelector('style[data-loon-music-style]');
-        const musicRoot = parsed.querySelector('#music');
-        const musicScript = parsed.querySelector('script[data-loon-music-script]');
-        if (musicStyle) document.head.appendChild(document.importNode(musicStyle, true));
-        if (musicRoot) mount.replaceWith(document.importNode(musicRoot, true));
-        if (musicScript) {
-          const runnable = document.createElement('script');
-          runnable.dataset.loonMusicScript = 'true';
-          runnable.textContent = musicScript.textContent;
-          document.body.appendChild(runnable);
+    const LUNA_SOURCE_URL = 'https://cdn.jsdelivr.net/gh/FireBoxy/xerxyz-15@main/git.html';
+    const lunaMount = document.getElementById('music');
+    let lunaLoadController = null;
+
+    async function loadLuna() {
+      if (!lunaMount) return;
+      lunaLoadController?.abort();
+      lunaLoadController = new AbortController();
+      const { signal } = lunaLoadController;
+      lunaMount.textContent = 'Loading Luna…';
+
+      try {
+        const response = await fetch(LUNA_SOURCE_URL, {
+          mode: 'cors',
+          credentials: 'omit',
+          cache: 'no-store',
+          signal
+        });
+        if (!response.ok) throw new Error(`Luna could not be fetched (HTTP ${response.status}).`);
+        let markup = await response.text();
+        if (!markup.includes('data-loon-music-style') || !markup.includes('data-loon-music-script')) {
+          throw new Error('The fetched page is missing Luna app content.');
         }
-      })
-      .catch(error => console.error(error));
+        if (signal.aborted || !document.documentElement.classList.contains('loom-luna-open')) return;
+        const theme = getComputedStyle(document.documentElement);
+        const themeProperties = [
+          ['--bg-color', '#000'],
+          ['--text-color', '#f5f7f6'],
+          ['--accent-color', '#b8f5cf'],
+          ['--border-color', '#302c37'],
+          ['--panel-bg', '#050505'],
+          ['--modal-bg', '#090909'],
+          ['--muted-text', '#a0a0a0'],
+          ['--font-family', 'system-ui, sans-serif'],
+          ['--border-radius', '14px']
+        ];
+        const themeTokens = themeProperties.map(([name, fallback]) => {
+          const value = theme.getPropertyValue(name).trim() || fallback;
+          return `${name}:${value}`;
+        });
+        const appearanceProperties = [
+          ['--appearance-surface', '--panel-bg'],
+          ['--appearance-raised', '--modal-bg'],
+          ['--appearance-hover', '--panel-bg'],
+          ['--appearance-border', '--border-color']
+        ];
+        for (const [name, fallback] of appearanceProperties) {
+          themeTokens.push(`${name}:${theme.getPropertyValue(name).trim() || `var(${fallback})`}`);
+        }
+        if (!/<\/head>/i.test(markup) || !/<body\b[^>]*>/i.test(markup) || !/<\/body>/i.test(markup)) {
+          throw new Error('The fetched Luna page is not a complete HTML document.');
+        }
+        const escapedTheme = themeTokens.join(';')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        markup = markup.replace(/<html\b([^>]*)>/i, (_, attributes) => {
+          const currentStyle = attributes.match(/\sstyle=(["'])(.*?)\1/i);
+          if (currentStyle) {
+            const mergedStyle = `${currentStyle[2]};${escapedTheme}`;
+            return `<html${attributes.replace(currentStyle[0], ` style="${mergedStyle}"`)}>`;
+          }
+          return `<html${attributes} style="${escapedTheme}">`;
+        });
+        document.open();
+        document.write(markup);
+        document.close();
+      } catch (error) {
+        if (signal.aborted || !document.documentElement.classList.contains('loom-luna-open')) return;
+        const message = document.createElement('p');
+        message.className = 'luna-load-error';
+        message.setAttribute('role', 'alert');
+        message.textContent = error instanceof Error ? error.message : 'Luna could not be loaded.';
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'btn';
+        retry.textContent = 'Try again';
+        retry.addEventListener('click', loadLuna);
+        lunaMount.replaceChildren(message, retry);
+        console.error('Luna load failed:', error);
+      }
+    }
+
+    window.openLunaRemote = loadLuna;
+    window.cancelLunaRemoteLoad = () => lunaLoadController?.abort();
   </script>
 
   <!-- GLOBAL GAME POPUP MODAL OVERLAY -->
@@ -1954,7 +2039,7 @@
     ];
     const ALL_SCRATCH_LIST = SCRATCH_LIST.concat(SCRATCH_EXTRA_IDS.map(id => ({ name: 'Scratch Project ' + id, id })));
 
-    
+
     // --- FAVORITES STORE & RECENTLY PLAYED ---
     let favoritesList = [];
     let recentlyPlayedList = [];
@@ -2138,6 +2223,8 @@
       if (target) target.classList.add('active');
       setNavActive(pageId);
       closeAllDropdowns();
+      if (pageId === 'music') window.openLunaRemote?.();
+      else window.cancelLunaRemoteLoad?.();
     }
 
     function closeAllDropdowns() {
@@ -2937,11 +3024,16 @@
     }
 
     function openBrowserServerInNewTab() {
-      openEmbedInNewTab(document.getElementById('page3-iframe').src, 'Boogle Brome');
+      const iframe = document.getElementById('page3-iframe');
+      openEmbedInNewTab(iframe.src, iframe.title || 'Browser');
     }
 
     function openEmbedInNewTab(url, title) {
       const win = window.open('about:blank', '_blank');
+      if (!win) {
+        toast('Allow pop-ups to open this page in a new tab.');
+        return;
+      }
       win.document.write(
         '<!DOCTYPE html><html style="height:100%;overflow:hidden"><head><title>' +
         escH(title || 'Taro') + '</title></head>' +
@@ -2951,6 +3043,20 @@
       );
       win.document.close();
     }
+
+    document.getElementById('browser-provider-picker')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-browser-url]');
+      if (!button) return;
+      const url = new URL(button.dataset.browserUrl);
+      if (url.protocol !== 'https:') {
+        toast('Browser providers must use a secure HTTPS address.');
+        return;
+      }
+      const iframe = document.getElementById('page3-iframe');
+      iframe.src = url.href;
+      iframe.title = button.dataset.browserProvider + ' browser';
+      event.currentTarget.open = false;
+    });
 
     function fullscreenEmbed(iframeId) {
       const iframe = document.getElementById(iframeId);
@@ -3023,12 +3129,15 @@
       applyWallpaper(localStorage.getItem('loom_bg_url'), e.target.value);
     });
 
-    const defaultBgUrl = 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2400&q=85';
-    const wallpaperVersion = 'unsplash-cozy-forest-v1';
+    const defaultBgUrl = 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=2400&q=85';
+    const wallpaperVersion = 'unsplash-cozy-snow-cabin-v2';
     const savedBgUrl = localStorage.getItem('loom_bg_url');
-    const oldDefaultBgUrl = 'https://wallpapercat.com/w/full/5/c/0/2117697-3840x2160-desktop-4k-dark-wallpaper.jpg';
+    const previousDefaultBgUrls = new Set([
+      'https://wallpapercat.com/w/full/5/c/0/2117697-3840x2160-desktop-4k-dark-wallpaper.jpg',
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2400&q=85'
+    ]);
     const shouldUpdateDefaultWallpaper = localStorage.getItem('loom_bg_default_version') !== wallpaperVersion &&
-      (!savedBgUrl || savedBgUrl === oldDefaultBgUrl);
+      (!savedBgUrl || previousDefaultBgUrls.has(savedBgUrl));
     const initialBgUrl = shouldUpdateDefaultWallpaper ? defaultBgUrl : (savedBgUrl ?? defaultBgUrl);
     const savedBgOpacity = shouldUpdateDefaultWallpaper
       ? '0.65'
@@ -3589,7 +3698,7 @@
             <h3>Explore Luna, Tools, and Watchables</h3>
             <ul>
               <li><strong>Luna</strong> is the music workspace. Browse albums, search for music, build a queue, and control playback. Luna opens focused full-screen and returns Home with the top-right X.</li>
-              <li><strong>Tools</strong> is a launcher for small web apps. Enter a secure jsDelivr URL for Leaf, then open it in the large centered viewer.</li>
+              <li><strong>Tools</strong> launches small web apps in the centered viewer or a separate about:blank tab.</li>
               <li><strong>Discover</strong> includes Watchables, the SLEEK document, Games, and Browser. Embedded pages can also be reloaded, opened fullscreen, or launched in a new tab.</li>
             </ul>
           </section>
@@ -3619,7 +3728,7 @@
             <p>Loom is more than a game library now. The 2.0 release turns it into a complete personal workspace with Luna music, a Tools launcher, a refined interface, and deeper customization.</p>
             <ul>
               <li><strong>Luna music:</strong> Browse, search, queue, and play music in a focused full-screen experience.</li>
-              <li><strong>Tools launcher:</strong> Open small web apps such as Leaf from secure jsDelivr-hosted HTML files.</li>
+              <li><strong>Tools launcher:</strong> Open small web apps such as Leaf from secure jsDelivr-hosted HTML files, in the viewer or a separate about:blank tab.</li>
               <li><strong>Refined UI:</strong> Redesigned navigation, polished panels, stronger visual presets, and responsive layouts for desktop and mobile.</li>
               <li><strong>More discovery:</strong> Expanded Watchables, Browser, suggestions, sharing, and game browsing tools.</li>
               <li><strong>Accessibility:</strong> Readability controls, dyslexia-friendly text, reduced motion, focus rings, custom scale, and flexible themes.</li>
@@ -3804,9 +3913,105 @@
       schedule3DFrame();
     });
 
+    function initSnowfall() {
+      const canvas = document.getElementById('snow-canvas');
+      const context = canvas.getContext('2d', { alpha: true });
+      if (!context) {
+        canvas.hidden = true;
+        console.warn('Snowfall is unavailable because a 2D canvas could not be created.');
+        return;
+      }
+
+      const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const flakes = [];
+      let width = 0;
+      let height = 0;
+      let frameId = null;
+      let lastFrameTime = 0;
+
+      function shouldReduceMotion() {
+        return reduceMotionQuery.matches || document.documentElement.getAttribute('data-reduce-motion') === 'true';
+      }
+
+      function resize() {
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+        const flakeCount = Math.min(90, Math.round(width * height / 18000));
+        flakes.length = 0;
+        for (let index = 0; index < flakeCount; index++) {
+          flakes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: 0.7 + Math.random() * 1.8,
+            speed: 0.35 + Math.random() * 0.75,
+            drift: 0.2 + Math.random() * 0.55,
+            phase: Math.random() * Math.PI * 2,
+            opacity: 0.28 + Math.random() * 0.5
+          });
+        }
+      }
+
+      function stop() {
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        frameId = null;
+        context.clearRect(0, 0, width, height);
+      }
+
+      function draw(timestamp) {
+        frameId = null;
+        if (document.hidden || shouldReduceMotion()) return;
+
+        const frameScale = lastFrameTime ? Math.min((timestamp - lastFrameTime) / 16.67, 2) : 1;
+        lastFrameTime = timestamp;
+        context.clearRect(0, 0, width, height);
+        for (const flake of flakes) {
+          flake.y += flake.speed * frameScale;
+          flake.x += Math.sin(timestamp * 0.00045 + flake.phase) * flake.drift * frameScale;
+          if (flake.y > height + flake.radius) {
+            flake.y = -flake.radius;
+            flake.x = Math.random() * width;
+          }
+          if (flake.x < -flake.radius) flake.x = width + flake.radius;
+          else if (flake.x > width + flake.radius) flake.x = -flake.radius;
+
+          context.beginPath();
+          context.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+          context.fillStyle = 'rgba(255, 255, 255, ' + flake.opacity + ')';
+          context.fill();
+        }
+        frameId = requestAnimationFrame(draw);
+      }
+
+      function syncAnimation() {
+        if (document.hidden || shouldReduceMotion()) {
+          stop();
+          lastFrameTime = 0;
+          return;
+        }
+        if (frameId === null) frameId = requestAnimationFrame(draw);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+      window.addEventListener('resize', syncAnimation);
+      document.addEventListener('visibilitychange', syncAnimation);
+      reduceMotionQuery.addEventListener('change', syncAnimation);
+      new MutationObserver(syncAnimation).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-reduce-motion']
+      });
+      syncAnimation();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       initHomepageContent();
       init3D();
+      initSnowfall();
     });
   </script>
   <script>
@@ -9081,12 +9286,67 @@
     overflow: hidden;
   }
 
-  #page3 .embed-workspace { height: 100%; min-height: 0; }
+  #page3 .embed-workspace { position: relative; height: 100%; min-height: 0; }
 
   #page3 .embed-iframe {
     min-height: 0;
     flex: 1 1 auto;
   }
+
+  .browser-provider-picker {
+    position: absolute;
+    z-index: 6;
+    top: 14px;
+    right: 68px;
+  }
+
+  .browser-provider-picker > summary {
+    min-height: 42px;
+    padding: 0 0.8rem;
+    border-radius: 13px;
+    list-style: none;
+    font-size: 0.78rem;
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
+
+  .browser-provider-picker > summary::-webkit-details-marker { display: none; }
+
+  .browser-provider-menu {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    display: grid;
+    width: 190px;
+    padding: 0.35rem;
+    border: 1px solid var(--appearance-border, var(--border-color));
+    border-radius: 14px;
+    background: var(--appearance-raised, var(--modal-bg));
+    box-shadow: 0 14px 36px rgba(0,0,0,.32);
+  }
+
+  .browser-provider-menu button {
+    display: flex;
+    justify-content: space-between;
+    min-height: 38px;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+  }
+
+  .browser-provider-menu button:hover,
+  .browser-provider-menu button:focus-visible {
+    outline: none;
+    background: var(--appearance-hover, var(--panel-bg));
+  }
+
+  .browser-provider-menu button span { color: var(--muted-text); }
 
   .browser-open-btn {
     position: absolute;
@@ -9118,6 +9378,8 @@
       inset: 10px 10px calc(80px + env(safe-area-inset-bottom));
     }
 
+    .browser-provider-picker { top: 10px; right: 58px; }
+    .browser-provider-picker > summary { min-height: 40px; }
     .browser-open-btn { top: 10px; right: 10px; width: 40px; height: 40px; }
   }
 
@@ -9834,22 +10096,30 @@
       position:fixed; z-index:80; inset:0; display:block; width:100vw;
       height:100dvh; margin:0; padding:0; overflow:hidden; background:#111310;
     }
-    #music .music-app { height:100%; min-height:0; border:0; border-radius:0; }
+    #music .music-app {
+      width:100%; max-width:none; height:100dvh; min-height:0; margin:0;
+      grid-template-rows:minmax(0,1fr); border:0; border-radius:0;
+    }
+    #music .music-main {
+      width:auto; max-width:none; height:100%; min-height:0; margin:0; padding:0;
+    }
     #music .music-content { padding-bottom:9rem; }
+    #music .luna-load-error { margin:2rem; color:var(--text-color); }
     .luna-home-exit {
-      position:fixed; z-index:100; top:14px; right:14px; display:grid;
-      width:44px; height:44px; place-items:center; border:1px solid rgba(255,255,255,.14);
+      position:fixed; z-index:10001; top:12px; right:12px; display:grid;
+      width:36px; height:36px; place-items:center; border:1px solid rgba(255,255,255,.18);
       border-radius:50%; background:rgba(17,19,16,.92); color:#f4f5ef; cursor:pointer;
-      font:300 28px/1 var(--font-family); box-shadow:0 8px 24px rgba(0,0,0,.28);
+      font:300 24px/1 var(--font-family); box-shadow:0 8px 24px rgba(0,0,0,.28);
     }
     .luna-home-exit[hidden] { display:none; }
     .luna-home-exit:hover { border-color:rgba(255,255,255,.35); background:#242820; }
     @media(max-width:760px) {
       html.loom-luna-open main { height:100dvh; }
       #music.page-content.active { inset:0; }
-      #music .music-app { grid-template-columns:minmax(0,1fr); }
+      #music .music-app { height:100dvh; grid-template-columns:minmax(0,1fr); }
+      #music .music-main { height:100%; }
       #music .music-content { padding-bottom:8rem; }
-      .luna-home-exit { top:10px; right:10px; width:40px; height:40px; font-size:26px; }
+      .luna-home-exit { top:10px; right:10px; width:34px; height:34px; font-size:23px; }
     }
 
     /* ChatGPT-inspired conversation layout */
@@ -10808,7 +11078,6 @@
   .tool-card-copy h2 { font: 600 1.25rem var(--display-font-family, var(--font-family)); }
   .tool-card-copy p { color: var(--muted-text); font-size: .78rem; line-height: 1.5; }
   .tool-launch-btn { width: 100%; justify-content: space-between; margin-top: auto; }
-
   .tools-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 360px)); gap: 1.1rem; }
   .tool-card {
     min-height: 300px;
@@ -10907,8 +11176,9 @@
   .tool-viewer { position: relative; display: flex; width: min(1440px, calc(100vw - 2rem)); height: min(960px, calc(100dvh - 2rem)); min-height: 260px; flex-direction: column; overflow: hidden; border: 1px solid var(--appearance-border, var(--border-color)); border-radius: 16px; background: var(--appearance-raised, var(--modal-bg)); box-shadow: 0 18px 50px rgba(0,0,0,.38); }
   .tool-viewer-content { position: relative; min-height: 0; flex: 1; overflow: auto; contain: layout paint; }
   .tool-viewer-bar { position: relative; z-index: 2; display: flex; min-height: 54px; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem .9rem .6rem 1rem; border-bottom: 1px solid var(--appearance-border, var(--border-color)); background: var(--appearance-raised, var(--modal-bg)); }
+  .tool-viewer-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .5rem; }
+  .tool-viewer-open-blank, .tool-viewer-close { min-height: 38px; padding: .4rem .75rem; }
   .tool-viewer-title { overflow: hidden; font-size: .85rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  .tool-viewer-close { min-height: 38px; padding: .4rem .75rem; flex: 0 0 auto; }
   .tool-viewer-status { flex: 0 0 auto; padding: .65rem 1rem; color: var(--muted-text); font-size: .75rem; }
   .tool-viewer-status:empty { display: none; }
   .tool-viewer-content { min-height: 0; flex: 1; overflow: auto; background: var(--bg-color); color: var(--text-color); }
@@ -10938,7 +11208,7 @@
   const overlay = document.createElement('div');
   overlay.className = 'tool-viewer-backdrop';
   overlay.innerHTML = '<section class="tool-viewer" role="dialog" aria-modal="true" aria-labelledby="tool-viewer-title">' +
-    '<div class="tool-viewer-bar"><h2 class="tool-viewer-title" id="tool-viewer-title">Leaf</h2><button class="btn btn-secondary tool-viewer-close" type="button" aria-label="Close Leaf and return to Loom">Back to Loom ×</button></div>' +
+    '<div class="tool-viewer-bar"><h2 class="tool-viewer-title" id="tool-viewer-title">Leaf</h2><div class="tool-viewer-actions"><button class="btn btn-secondary tool-viewer-open-blank" type="button">Open in about:blank ↗</button><button class="btn btn-secondary tool-viewer-close" type="button" aria-label="Close Leaf and return to Loom">Back to Loom ×</button></div></div>' +
     '<p class="tool-viewer-status" role="status" aria-live="polite"></p>' +
     '<div class="tool-viewer-content" id="tool-viewer-content"></div>' +
     '</section>';
@@ -10948,6 +11218,7 @@
   const viewerStatus = overlay.querySelector('.tool-viewer-status');
   const viewerTitle = overlay.querySelector('.tool-viewer-title');
   const closeButton = overlay.querySelector('.tool-viewer-close');
+  const openBlankButton = overlay.querySelector('.tool-viewer-open-blank');
   let requestController = null;
   let leafLoaded = false;
   let leafRoot = null;
@@ -11035,6 +11306,93 @@
     });
   }
 
+  function openToolWindow(title) {
+    const toolWindow = window.open('about:blank', '_blank');
+    if (!toolWindow) {
+      toast('Allow pop-ups to open ' + title + ' in about:blank');
+      return null;
+    }
+
+    toolWindow.opener = null;
+    toolWindow.document.title = 'Loading ' + title + '…';
+    toolWindow.document.body.textContent = 'Fetching ' + title + '…';
+    return toolWindow;
+  }
+
+  async function openViewerInBlank() {
+    const title = viewerTitle.textContent;
+    const tools = {
+      Leaf: { url: leafUrl },
+      Lex: { url: lexUrl },
+      VM: { url: vmUrl, decodeVmWrapper: true }
+    };
+    const tool = tools[title];
+    if (!tool) return;
+
+    const toolWindow = openToolWindow(title);
+    if (!toolWindow) return;
+    if (tool.decodeVmWrapper && !await confirmVmWarning()) {
+      toolWindow.close();
+      return;
+    }
+    loadToolIntoWindow(toolWindow, tool.url, title, { decodeVmWrapper: tool.decodeVmWrapper });
+  }
+
+  async function loadToolIntoWindow(toolWindow, rawUrl, title, options = {}) {
+    try {
+      const toolUrl = new URL(rawUrl);
+      const isJsDelivrUrl = toolUrl.protocol === 'https:' && toolUrl.hostname === 'cdn.jsdelivr.net';
+      const isLocalAppUrl = isLocalDevelopment && toolUrl.origin === window.location.origin;
+      if (!isJsDelivrUrl && !isLocalAppUrl) {
+        throw new Error('Use a secure jsDelivr URL (https://cdn.jsdelivr.net/...).');
+      }
+
+      toolUrl.searchParams.set('_loom', Date.now().toString());
+      const response = await fetch(toolUrl.href, { cache: 'no-store' });
+      if (!response.ok) throw new Error(title + ' could not be loaded (HTTP ' + response.status + ').');
+      let source = await response.text();
+      if (!source.trim()) throw new Error(title + '’s HTML file is empty.');
+
+      let baseUrl = toolUrl.href;
+      if (options.decodeVmWrapper) {
+        const encodedApp = source.match(/atob\(['"]([A-Za-z0-9+/=]+)['"]\)/);
+        if (!encodedApp) throw new Error('The VM HTML wrapper has an unexpected format.');
+        const binary = atob(encodedApp[1]);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        source = new TextDecoder().decode(bytes);
+        baseUrl = 'https://xcloud.inknetworks.site/';
+      }
+
+      const parsed = new DOMParser().parseFromString(source, 'text/html');
+      if (!parsed.head || !parsed.body) throw new Error(title + ' did not contain a valid HTML document.');
+      parsed.title = parsed.title || title;
+
+      let base = parsed.head.querySelector('base');
+      if (!base) {
+        base = parsed.createElement('base');
+        parsed.head.prepend(base);
+      }
+      base.href = baseUrl;
+
+      if (options.decodeVmWrapper) {
+        parsed.querySelectorAll('script').forEach(script => {
+          if (/navigator\s*\.\s*serviceWorker\s*\.\s*register/.test(script.textContent || '')) script.remove();
+        });
+      }
+
+      if (toolWindow.closed) return;
+      toolWindow.document.open();
+      toolWindow.document.write('<!DOCTYPE html>' + parsed.documentElement.outerHTML);
+      toolWindow.document.close();
+    } catch (error) {
+      if (!toolWindow.closed) {
+        toolWindow.document.body.textContent = error.message || (title + ' could not be loaded.');
+      }
+      toast(title + ' could not be loaded');
+    }
+  }
+
+  openBlankButton.addEventListener('click', openViewerInBlank);
   closeButton.addEventListener('click', closeViewer);
   overlay.addEventListener('click', event => { if (event.target === overlay) closeViewer(); });
   document.addEventListener('keydown', event => {
@@ -11253,10 +11611,27 @@
       toolUrl.searchParams.set('_loom', Date.now().toString());
       viewerStatus.textContent = 'Fetching VM from jsDelivr…';
 
+      const fetchVmText = async (url, signal, label) => {
+        const controller = new AbortController();
+        const abortFromParent = () => controller.abort();
+        if (signal.aborted) controller.abort();
+        else signal.addEventListener('abort', abortFromParent, { once: true });
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        try {
+          const resourceResponse = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+          if (!resourceResponse.ok) throw new Error(label + ' could not be loaded (' + resourceResponse.status + ').');
+          return await resourceResponse.text();
+        } catch (error) {
+          if (!signal.aborted && controller.signal.aborted) throw new Error(label + ' request timed out.');
+          throw error;
+        } finally {
+          clearTimeout(timeoutId);
+          signal.removeEventListener('abort', abortFromParent);
+        }
+      };
+
       try {
-        const response = await fetch(toolUrl.href, { signal: currentRequest.signal, cache: 'no-store' });
-        if (!response.ok) throw new Error('Could not load VM (HTTP ' + response.status + ').');
-        const source = await response.text();
+        const source = await fetchVmText(toolUrl.href, currentRequest.signal, 'VM');
         const encodedApp = source.match(/atob\(['"]([A-Za-z0-9+/=]+)['"]\)/);
         if (!encodedApp) throw new Error('The VM HTML wrapper has an unexpected format.');
         if (requestController !== currentRequest) return;
@@ -11275,15 +11650,22 @@
         const styles = Array.from(parsed.querySelectorAll('style, link[rel="stylesheet"]'));
         const originalDocumentTitle = parsed.title;
         scripts.forEach(script => script.remove());
-        styles.forEach(style => {
+        styles.forEach(style => style.remove());
+        for (const style of styles) {
           if (style.tagName === 'STYLE') {
-            style.textContent = style.textContent.replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + appBaseUrl);
-          } else {
-            const href = style.getAttribute('href');
-            if (href && href.startsWith('/')) style.href = new URL(href, appBaseUrl).href;
+            const inlineStyle = document.createElement('style');
+            inlineStyle.textContent = style.textContent.replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + appBaseUrl);
+            root.appendChild(inlineStyle);
+            continue;
           }
-          root.appendChild(document.importNode(style, true));
-        });
+          const href = style.getAttribute('href');
+          if (!href) continue;
+          const stylesheetUrl = new URL(href, appBaseUrl);
+          const stylesheetText = await fetchVmText(stylesheetUrl.href, currentRequest.signal, 'A VM stylesheet');
+          const inlineStyle = document.createElement('style');
+          inlineStyle.textContent = stylesheetText.replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + appBaseUrl);
+          root.appendChild(inlineStyle);
+        }
 
         Array.from(parsed.body.childNodes).forEach(node => {
           const imported = document.importNode(node, true);
@@ -11341,12 +11723,11 @@
           const script = document.createElement('script');
           Array.from(original.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
           if (original.src) {
-            script.src = new URL(original.getAttribute('src'), appBaseUrl).href;
-            await new Promise((resolve, reject) => {
-              script.onload = resolve;
-              script.onerror = () => reject(new Error('A VM script could not be loaded.'));
-              root.appendChild(script);
-            });
+            const scriptUrl = new URL(original.getAttribute('src'), appBaseUrl);
+            const fetchedScript = await fetchVmText(scriptUrl.href, currentRequest.signal, 'A VM script');
+            script.textContent = fetchedScript.replace(/\blocalStorage\b/g, 'window.__loomVmLocalStorage')
+              .replace(/\bsessionStorage\b/g, 'window.__loomVmSessionStorage') + '\n//# sourceURL=' + scriptUrl.href;
+            root.appendChild(script);
           } else {
             script.textContent = type === 'text/plain' ? content : content
               .replace(/\blocalStorage\b/g, 'window.__loomVmLocalStorage')
